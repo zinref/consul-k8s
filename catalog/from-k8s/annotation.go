@@ -23,4 +23,9 @@ const (
 	// annotationServiceMetaPrefix is the prefix for setting meta key/value
 	// for a service. The remainder of the key is the meta key.
 	annotationServiceMetaPrefix = "consul.hashicorp.com/service-meta-"
+
+	// annotationNodeFQDN is an optional annotation that can be applied
+	// to Kubernetes nodes as a way to sync NodePort services using a node's
+	// fully qualified domain name instead of an ip address
+	annotationNodeFQDN = "consul.hashicorp.com/node-fqdn"
 )

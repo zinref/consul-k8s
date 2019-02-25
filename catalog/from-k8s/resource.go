@@ -40,6 +40,10 @@ const (
 
 	// Sync NodePort services using
 	InternalOnly NodePortSyncType = "InternalOnly"
+
+	// Sync with a node's FQDN provided in a node's
+	// "consul.hashicorp.com/node-fqdn" annotation
+	NodeFQDNAnnotation NodePortSyncType = "NodeFQDNAnnotation"
 )
 
 // ServiceResource implements controller.Resource to sync Service resource
@@ -423,35 +427,34 @@ func (t *ServiceResource) generateRegistrations(key string) {
 					continue
 				}
 
-				// Set the expected node address type
-				var expectedType apiv1.NodeAddressType
-				if t.NodePortSync == InternalOnly {
-					expectedType = apiv1.NodeInternalIP
-				} else {
-					expectedType = apiv1.NodeExternalIP
-				}
-
-				// Find the ip address for the node and
-				// create the Consul service using it
-				var found bool
-				for _, address := range node.Status.Addresses {
-					if address.Type == expectedType {
-						found = true
+				if t.NodePortSync == NodeFQDNAnnotation {
+					// Pull the DNS value out of the node annotation
+					address := node.Annotations[annotationNodeFQDN]
+					if address != "" {
 						r := baseNode
 						rs := baseService
 						r.Service = &rs
-						r.Service.ID = serviceID(r.Service.Service, address.Address)
-						r.Service.Address = address.Address
+						r.Service.ID = serviceID(r.Service.Service, address)
+						r.Service.Address = address
 
 						t.consulMap[key] = append(t.consulMap[key], &r)
 					}
-				}
 
-				// If an ExternalIP wasn't found, and ExternalFirst is set,
-				// use an InternalIP
-				if t.NodePortSync == ExternalFirst && !found {
+				} else {
+					// Set the expected node address type
+					var expectedType apiv1.NodeAddressType
+					if t.NodePortSync == InternalOnly {
+						expectedType = apiv1.NodeInternalIP
+					} else {
+						expectedType = apiv1.NodeExternalIP
+					}
+
+					// Find the ip address for the node and
+					// create the Consul service using it
+					var found bool
 					for _, address := range node.Status.Addresses {
-						if address.Type == apiv1.NodeInternalIP {
+						if address.Type == expectedType {
+							found = true
 							r := baseNode
 							rs := baseService
 							r.Service = &rs
@@ -459,6 +462,22 @@ func (t *ServiceResource) generateRegistrations(key string) {
 							r.Service.Address = address.Address
 
 							t.consulMap[key] = append(t.consulMap[key], &r)
+						}
+					}
+
+					// If an ExternalIP wasn't found, and ExternalFirst is set,
+					// use an InternalIP
+					if t.NodePortSync == ExternalFirst && !found {
+						for _, address := range node.Status.Addresses {
+							if address.Type == apiv1.NodeInternalIP {
+								r := baseNode
+								rs := baseService
+								r.Service = &rs
+								r.Service.ID = serviceID(r.Service.Service, address.Address)
+								r.Service.Address = address.Address
+
+								t.consulMap[key] = append(t.consulMap[key], &r)
+							}
 						}
 					}
 				}
