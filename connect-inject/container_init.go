@@ -6,6 +6,7 @@ import (
 	"text/template"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 type initContainerCommandData struct {
@@ -133,6 +134,16 @@ func (h *Handler) containerInit(pod *corev1.Pod) (corev1.Container, error) {
 				ValueFrom: &corev1.EnvVarSource{
 					FieldRef: &corev1.ObjectFieldSelector{FieldPath: "metadata.namespace"},
 				},
+			},
+		},
+		Resources: corev1.ResourceRequirements{
+			Limits: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("125Mi"),
+			},
+			Requests: corev1.ResourceList{
+				corev1.ResourceCPU: resource.MustParse("100m"),
+				corev1.ResourceMemory: resource.MustParse("125Mi"),
 			},
 		},
 		VolumeMounts: volMounts,
